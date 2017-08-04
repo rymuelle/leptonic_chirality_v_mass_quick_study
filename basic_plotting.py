@@ -1,17 +1,25 @@
 from ROOT import TFile, TTree, TH1F, TLorentzVector, TMath, TRandom, TClonesArray, TCanvas
+from root_numpy import tree2array
+
+
+f_RH_1           = TFile.Open("one_tev_RH_lep.root", "read")
+
+f_RH_5           = TFile.Open("five_tev_LH_lep.root", "read")
+
+f_LH_1           = TFile.Open("one_tev_LH_lep.root", "read")
+
+f_LH_5           = TFile.Open("five_tev_RH_lep.root", "read")
 
 
 
-f_RH_1           = TFile.Open("tag_3_delphes_events.root", "read")
+RHone = f_RH_1.Get("Delphes")
 
-f_RH_5           = TFile.Open("tag_1_delphes_events_5.root", "read")
-
-
+RHfive = f_RH_5.Get("Delphes")
 
 
-Tone = f_RH_1.Get("Delphes")
+LHone = f_LH_1.Get("Delphes")
 
-Tfive = f_RH_5.Get("Delphes")
+LHfive = f_LH_5.Get("Delphes")
 
 c1 = TCanvas()
 
@@ -102,21 +110,42 @@ def returnHistogram(test, name):
 
 
 
-one_tev = returnHistogram(Tone, "1TeV")
-five_tev = returnHistogram(Tfive, "5TeV")
-one_tev['TH1F_ratio'].Scale(1.0/one_tev['TH1F_ratio'].GetEntries())
-one_tev['TH1F_ratio'].Draw()
-five_tev['TH1F_ratio'].Scale(1.0/five_tev['TH1F_ratio'].GetEntries())
-five_tev['TH1F_ratio'].SetLineColor(2)
-five_tev['TH1F_ratio'].Draw("same")
+one_tev_RH = returnHistogram(RHone, "1TeV")
+five_tev_RH = returnHistogram(RHfive, "5TeV")
+
+
+one_tev_LH = returnHistogram(LHone, "1TeV")
+five_tev_LH = returnHistogram(LHfive, "5TeV")
+
+
+one_tev_RH['TH1F_ratio'].Scale(1.0/one_tev_RH['TH1F_ratio'].GetEntries())
+one_tev_RH['TH1F_ratio'].Draw()
+five_tev_RH['TH1F_ratio'].Scale(1.0/five_tev_RH['TH1F_ratio'].GetEntries())
+five_tev_RH['TH1F_ratio'].SetLineColor(2)
+five_tev_RH['TH1F_ratio'].Draw("same")
+
+five_tev_LH['TH1F_ratio'].Scale(1.0/five_tev_LH['TH1F_ratio'].GetEntries())
+five_tev_LH['TH1F_ratio'].SetLineColor(4)
+five_tev_LH['TH1F_ratio'].Draw("same")
+
+one_tev_LH['TH1F_ratio'].Scale(1.0/one_tev_LH['TH1F_ratio'].GetEntries())
+one_tev_LH['TH1F_ratio'].SetLineColor(3)
+one_tev_LH['TH1F_ratio'].Draw("same")
+
+
 c1.SaveAs("one_tev.png")
 
 
-one_tev['TH1F_pt'].Scale(1.0/one_tev['TH1F_pt'].GetEntries())
-one_tev['TH1F_pt'].Draw()
-five_tev['TH1F_pt'].SetLineColor(2)
-five_tev['TH1F_pt'].Scale(1.0/five_tev['TH1F_pt'].GetEntries())
-five_tev['TH1F_pt'].Draw("same")
-c1.SaveAs("pt.png")
+
+
+#one_tev['TH1F_pt'].Scale(1.0/one_tev['TH1F_pt'].GetEntries())
+#one_tev['TH1F_pt'].Draw()
+#five_tev['TH1F_pt'].SetLineColor(2)
+#five_tev['TH1F_pt'].Scale(1.0/five_tev['TH1F_pt'].GetEntries())
+#five_tev['TH1F_pt'].Draw("same")
+#c1.SaveAs("pt.png")
+
+
+
 
 		
