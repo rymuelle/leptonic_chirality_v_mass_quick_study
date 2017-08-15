@@ -1,5 +1,9 @@
-from ROOT import TFile, TTree, TH1F, TLorentzVector, TMath, TRandom, TClonesArray, TCanvas
+from ROOT import TFile, TTree, TH1F, TLorentzVector, TMath, TRandom, TClonesArray, TCanvas, gROOT
 from root_numpy import tree2array
+from histogrammar import *
+import numpy
+
+gROOT.SetBatch(True)
 
 
 f_RH_1           = TFile.Open("one_tev_RH_lep.root", "read")
@@ -65,87 +69,108 @@ def getJets(tree):
 			Jets.append(cand)
 	return Jets
 
-def returnHistogram(test, name):
-	TH1F_ratio = TH1F("TH1F_ratio_{}".format(name), "TH1F_ratio_{}".format(name), 10, 0, 1)
-	TH1F_pt = TH1F("TH1F_pt{}".format(name), "TH1F_pt{}".format(name), 10, 0, 2000)
 
-	for count in range(test.GetEntries()):
-		muon_pt = 0
-		electron_pt = 0
-		jet_pt = 0
+
+class ratioHistograms:
+	def __init__(self, tree, name):
+		self.name = name
+		self.TH1F_ratio = TH1F("TH1F_ratio_{}".format(name), "TH1F_ratio; E(b)/E(t); count", 10, 0 , 1)
+		self.TH1F_pt = TH1F("TH1F_pt{}".format(name), "TH1F_pt{}".format(name), 10, 0, 2000)
+
+		self.fillHistogram(tree)
+
+
+
+	def fillHistogram(self,tree):
 	
-		test.GetEntry(count)
-		jets = getJets(test)
-		muons = getMuons(test)
-		electrons = getElectrons(test)
-	
-		for jet in jets:
-			if jet['btag'] == 1:
-				#print count, jet['pt'], jet['btag']
-				jet_pt = jet['pt']
-				break
-	
-		for muon in muons:
-			#print count, muon['pt']
-			muon_pt = muon['pt']
-			break
-	
-		for electron in electrons:
-			#print count, electron['pt']
-			electron_pt = electron['pt']
-			break
-	
-		if muon_pt*jet_pt > 0:
-			print jet_pt/(jet_pt+muon_pt)
-			TH1F_ratio.Fill(jet_pt/(jet_pt+muon_pt))
-			TH1F_pt.Fill(muon_pt)
-		elif electron_pt*jet_pt > 0:
-			print jet_pt/(jet_pt+electron_pt)
-			TH1F_ratio.Fill(jet_pt/(jet_pt+electron_pt))
-			TH1F_pt.Fill(electron_pt)
-	 
-	hist = {'TH1F_ratio':TH1F_ratio, 'TH1F_pt':TH1F_pt}
-	return hist
-
-
-
-
-one_tev_RH = returnHistogram(RHone, "1TeV")
-five_tev_RH = returnHistogram(RHfive, "5TeV")
-
-
-one_tev_LH = returnHistogram(LHone, "1TeV")
-five_tev_LH = returnHistogram(LHfive, "5TeV")
-
-
-one_tev_RH['TH1F_ratio'].Scale(1.0/one_tev_RH['TH1F_ratio'].GetEntries())
-one_tev_RH['TH1F_ratio'].Draw()
-five_tev_RH['TH1F_ratio'].Scale(1.0/five_tev_RH['TH1F_ratio'].GetEntries())
-five_tev_RH['TH1F_ratio'].SetLineColor(2)
-five_tev_RH['TH1F_ratio'].Draw("same")
-
-five_tev_LH['TH1F_ratio'].Scale(1.0/five_tev_LH['TH1F_ratio'].GetEntries())
-five_tev_LH['TH1F_ratio'].SetLineColor(4)
-five_tev_LH['TH1F_ratio'].Draw("same")
-
-one_tev_LH['TH1F_ratio'].Scale(1.0/one_tev_LH['TH1F_ratio'].GetEntries())
-one_tev_LH['TH1F_ratio'].SetLineColor(3)
-one_tev_LH['TH1F_ratio'].Draw("same")
-
-
-c1.SaveAs("one_tev.png")
-
-
-
-
-#one_tev['TH1F_pt'].Scale(1.0/one_tev['TH1F_pt'].GetEntries())
-#one_tev['TH1F_pt'].Draw()
-#five_tev['TH1F_pt'].SetLineColor(2)
-#five_tev['TH1F_pt'].Scale(1.0/five_tev['TH1F_pt'].GetEntries())
-#five_tev['TH1F_pt'].Draw("same")
-#c1.SaveAs("pt.png")
-
-
-
-
+		for count in range(tree.GetEntries()):
+			muon_pt = 0
+			electron_pt = 0
+			jet_pt = 0
 		
+			tree.GetEntry(count)
+			jets = getJets(tree)
+			muons = getMuons(tree)
+			electrons = getElectrons(tree)
+		
+			for jet in jets:
+				if jet['btag'] == 1:
+					#print count, jet['pt'], jet['btag']
+					jet_pt = jet['pt']
+					break
+		
+			for muon in muons:
+				#print count, muon['pt']
+				muon_pt = muon['pt']
+				break
+		
+			for electron in electrons:
+				#print count, electron['pt']
+				electron_pt = electron['pt']
+				break
+		
+			if muon_pt*jet_pt > 0:
+				#print jet_pt/(jet_pt+muon_pt)
+				self.TH1F_ratio.Fill(jet_pt/(jet_pt+muon_pt))
+				self.TH1F_pt.Fill(muon_pt)
+			elif electron_pt*jet_pt > 0:
+				#print jet_pt/(jet_pt+electron_pt)
+				self.TH1F_ratio.Fill(jet_pt/(jet_pt+electron_pt))
+				self.TH1F_pt.Fill(electron_pt)
+		 
+		
+		#hist = {'TH1F_ratio':self.TH1F_ratio, 'TH1F_pt':TH1F_pt}
+		#return hist
+
+	def drawHistogram(self, fillHistogramClass):
+		self.TH1F_ratio.SetLineColor(2)
+		self.TH1F_ratio.Draw()
+		fillHistogramClass.TH1F_ratio.SetLineColor(3)
+		fillHistogramClass.TH1F_ratio.Draw("same")
+		c1.SaveAs("ratio_{}_{}.png".format(self.name, fillHistogramClass.name))
+
+
+
+
+RHoneClass = ratioHistograms(RHone, "RHone")
+LHoneClass = ratioHistograms(LHone, "LHone")
+
+LHoneClass.drawHistogram(RHoneClass)
+
+
+
+
+
+
+
+
+
+#Bundle = UntypedLabel
+#
+#RH_one_array = tree2array(RHone,
+#	 branches=[	'Muon.PT[0]', 'Jet.PT[0]' , 
+#	 			'Jet.PT[0]/(Muon.PT[0] + Jet.PT[0])'],
+#    selection='Muon.PT[0] > 10',
+#    start=0, stop=-1, step=1)
+#
+#
+#RH_one_array.dtype.names = [	'muonPt', 'leadingJetPt', 
+#						'ratio'  ]
+#
+#
+#print RH_one_array
+#
+#standard_histograms = Select( lambda array: numpy.logical_and(array['muonPt'] > 10 ,abs(array['leadingJetPt']) > 10), Bundle(
+#
+#
+#D1_ratio = Bin(	100, 0, 1, 
+#	lambda array : (array['ratio'], Count() )),
+#
+#))
+#
+#standard_histograms.fill.numpy(RH_one_array)
+#
+#TH1D_ratio = standard_histograms.get("D1_ratio").plot.root("D1_ratio", "ratio")
+#
+#TH1D_ratio.Draw()
+#c1.SaveAs("TH1D_ratio.png")#
