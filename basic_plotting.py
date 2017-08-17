@@ -1,18 +1,16 @@
-from ROOT import TFile, TTree, TH1F, TLorentzVector, TMath, TRandom, TClonesArray, TCanvas, gROOT
-from root_numpy import tree2array
-from histogrammar import *
-import numpy
+from ROOT import TFile, TTree, TH1F, TH2F, TLorentzVector, TMath, TRandom, TClonesArray, TCanvas, gROOT, TGraph, TLine, TLegend
+import ratioHistograms
 
 gROOT.SetBatch(True)
 
 
 f_RH_1           = TFile.Open("one_tev_RH_lep.root", "read")
 
-f_RH_5           = TFile.Open("five_tev_LH_lep.root", "read")
+f_RH_5           = TFile.Open("five_tev_RH_lep.root", "read")
 
 f_LH_1           = TFile.Open("one_tev_LH_lep.root", "read")
 
-f_LH_5           = TFile.Open("five_tev_RH_lep.root", "read")
+f_LH_5           = TFile.Open("five_tev_LH_lep.root", "read")
 
 
 
@@ -27,123 +25,32 @@ LHfive = f_LH_5.Get("Delphes")
 
 c1 = TCanvas()
 
+ROC_ratio = []
 
-def getMuons(tree):
-	nMuons = tree.GetLeaf('Muon_size').GetValue()
-	Muons=[]
-	for j in range(int(nMuons)):
-			pt = tree.GetLeaf('Muon.PT').GetValue(j)
-			eta = tree.GetLeaf('Muon.Eta').GetValue(j)
-			phi= tree.GetLeaf('Muon.Phi').GetValue(j)
-			
-		
-			cand={'pt':pt, 'eta':eta, 'phi':phi,}
-			Muons.append(cand)
-	return Muons
+RHoneClass = ratioHistograms.ratioHistograms(RHone, "RHone")
+LHoneClass = ratioHistograms.ratioHistograms(LHone, "LHone")
 
-def getElectrons(tree):
-	nElectrons = tree.GetLeaf('Electron_size').GetValue()
-	Electrons=[]
-	for j in range(int(nElectrons)):
-			pt = tree.GetLeaf('Electron.PT').GetValue(j)
-			eta = tree.GetLeaf('Electron.Eta').GetValue(j)
-			phi= tree.GetLeaf('Electron.Phi').GetValue(j)
-			
-		
-			cand={'pt':pt, 'eta':eta, 'phi':phi,}
-			Electrons.append(cand)
-	return Electrons
+RHoneClass.drawHistograms(c1)
+LHoneClass.drawHistograms(c1)
+
+ROC_ratio.append( (ratioHistograms.makeROC(LHoneClass.TH1F_ratio, RHoneClass.TH1F_ratio, c1, "LHone", "RHone"), "1 TeV") )
 
 
-def getJets(tree):
-	nJets = tree.GetLeaf('Jet_size').GetValue()
-	Jets=[]
-	for j in range(int(nJets)):
-			pt = tree.GetLeaf('Jet.PT').GetValue(j)
-			eta = tree.GetLeaf('Jet.Eta').GetValue(j)
-			phi= tree.GetLeaf('Jet.Phi').GetValue(j)
-			mass = tree.GetLeaf('Jet.Mass').GetValue(j)
-			btag = tree.GetLeaf('Jet.BTag').GetValue(j)
-		
-			cand={'pt':pt, 'eta':eta, 'phi':phi,'mass':mass, 'btag':btag}
-			Jets.append(cand)
-	return Jets
+#LHoneClass.makeROC(RHoneClass, c1)
 
 
+RHfiveClass = ratioHistograms.ratioHistograms(RHfive, "RHfive")
+LHfiveClass = ratioHistograms.ratioHistograms(LHfive, "LHfive")
 
-class ratioHistograms:
-	def __init__(self, tree, name):
-		self.name = name
-		self.TH1F_ratio = TH1F("TH1F_ratio_{}".format(name), "TH1F_ratio; E(b)/E(t); count", 10, 0 , 1)
-		self.TH1F_pt = TH1F("TH1F_pt{}".format(name), "TH1F_pt{}".format(name), 10, 0, 2000)
-
-		self.fillHistogram(tree)
+RHfiveClass.drawHistograms(c1)
+LHfiveClass.drawHistograms(c1)
+#LHfiveClass.makeROC(RHfiveClass, c1)
 
 
-
-	def fillHistogram(self,tree):
-	
-		for count in range(tree.GetEntries()):
-			muon_pt = 0
-			electron_pt = 0
-			jet_pt = 0
-		
-			tree.GetEntry(count)
-			jets = getJets(tree)
-			muons = getMuons(tree)
-			electrons = getElectrons(tree)
-		
-			for jet in jets:
-				if jet['btag'] == 1:
-					#print count, jet['pt'], jet['btag']
-					jet_pt = jet['pt']
-					break
-		
-			for muon in muons:
-				#print count, muon['pt']
-				muon_pt = muon['pt']
-				break
-		
-			for electron in electrons:
-				#print count, electron['pt']
-				electron_pt = electron['pt']
-				break
-		
-			if muon_pt*jet_pt > 0:
-				#print jet_pt/(jet_pt+muon_pt)
-				self.TH1F_ratio.Fill(jet_pt/(jet_pt+muon_pt))
-				self.TH1F_pt.Fill(muon_pt)
-			elif electron_pt*jet_pt > 0:
-				#print jet_pt/(jet_pt+electron_pt)
-				self.TH1F_ratio.Fill(jet_pt/(jet_pt+electron_pt))
-				self.TH1F_pt.Fill(electron_pt)
-		 
-		
-		#hist = {'TH1F_ratio':self.TH1F_ratio, 'TH1F_pt':TH1F_pt}
-		#return hist
-
-	def drawHistogram(self, fillHistogramClass):
-		self.TH1F_ratio.SetLineColor(2)
-		self.TH1F_ratio.Draw()
-		fillHistogramClass.TH1F_ratio.SetLineColor(3)
-		fillHistogramClass.TH1F_ratio.Draw("same")
-		c1.SaveAs("ratio_{}_{}.png".format(self.name, fillHistogramClass.name))
+ROC_ratio.append( (ratioHistograms.makeROC(LHfiveClass.TH1F_ratio, RHfiveClass.TH1F_ratio, c1, "LHfive", "RHfive"), "5 TeV") )
 
 
-
-
-RHoneClass = ratioHistograms(RHone, "RHone")
-LHoneClass = ratioHistograms(LHone, "LHone")
-
-LHoneClass.drawHistogram(RHoneClass)
-
-
-
-
-
-
-
-
+ratioHistograms.ROCMGDraw(ROC_ratio, c1)
 
 #Bundle = UntypedLabel
 #
