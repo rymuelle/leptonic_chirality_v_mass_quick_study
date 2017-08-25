@@ -61,7 +61,7 @@ typedef struct {
 
 
 
-Float_t* returnJetStuff(Float_t values[2], Jet *bjet, Jet *jet1, Jet *jet2){
+Float_t* returnJetStuff(Float_t values[5], Jet *bjet, Jet *jet1, Jet *jet2){
 
   TLorentzVector TL_b;
   TL_b.SetPtEtaPhiM(bjet->PT, bjet->Eta, bjet->Phi, bjet->Mass );
@@ -74,6 +74,9 @@ Float_t* returnJetStuff(Float_t values[2], Jet *bjet, Jet *jet1, Jet *jet2){
 
   values[0] = (TL_w + TL_b).M();
   values[1] =  TL_b.E()/(TL_w + TL_b).E();
+  values[2] =  TL_w.Pt();
+  values[3] =  TL_w.Eta();
+  values[4] =  TL_w.Phi();
 
   return values;
 }
@@ -89,7 +92,7 @@ void make_short_tree(const char *inputFile)
 
 
   // make leptonTTree.C
-  TFile f("tree1.root","recreate");
+  TFile f("treeRH.root","recreate");
   TTree TTree_lep("TTree_lep","TTree_lep");
   leptonic_variables lep;
   
@@ -190,11 +193,11 @@ void make_short_tree(const char *inputFile)
     }
 
     //fill hadronic tree
-    if( jet && jet1 && jet2 && jet->BTag+jet1->BTag+jet2->BTag > 0){
+    if( not(muon1 || elec1) && met && jet && jet1 && jet2 && jet->BTag+jet1->BTag+jet2->BTag > 0){
 
       
 
-      Float_t values[2];
+      Float_t values[5];
      
 
       if(jet->BTag > 0){
@@ -215,27 +218,23 @@ void make_short_tree(const char *inputFile)
         returnJetStuff(values, jet2, jet1, jet);
       }
 
-      cout << values[0] << " " << values[1] << endl;
+      had.jj_pt = values[2];
+      had.jj_eta = values[3];
+      had.jj_phi = values[4];
+
+      had.ratio = values[1];
+      had.mjjb = values[0];
+      
+      had.met_pt  = met->MET;
+      had.met_phi =  met->Phi;
+      had.met_eta =  met->Eta;
+
 
       TTree_had.Fill();
     
     }
 
 
-// TTree_had.Branch("jj_pt", &had.jj_pt, "jj_pt/F");
-// TTree_had.Branch("jj_eta", &had.jj_eta, "jj_eta/F");
-// TTree_had.Branch("jj_phi", &had.jj_phi, "jj_phi/F");
-// 
-// TTree_had.Branch("bjet_pt", &had.bjet_pt, "bjet_pt/F");
-// TTree_had.Branch("bjet_eta", &had.bjet_eta, "bjet_eta/F");
-// TTree_had.Branch("bjet_phi", &had.bjet_phi, "bjet_phi/F");
-// 
-// TTree_had.Branch("met_pt", &had.met_pt, "met_pt/F");
-// TTree_had.Branch("met_phi", &had.met_phi, "met_phi/F");
-// TTree_had.Branch("met_eta", &had.met_eta, "met_eta/F");
-// 
-// TTree_had.Branch("ratio", &had.ratio, "ratio/F");
-// TTree_had.Branch("mjjb", &had.mjjb, "mjjb/F");
     
 
     //fill leptonic tree
