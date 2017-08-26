@@ -1,56 +1,135 @@
 from ROOT import TFile, TTree, TH1F, TH2F, TLorentzVector, TMath, TRandom, TClonesArray, TCanvas, gROOT, TGraph, TLine, TLegend
-import ratioHistograms
+
+#import ratioHistograms
+import ROOT
 
 gROOT.SetBatch(True)
 
 
-f_RH_1           = TFile.Open("one_tev_RH_lep.root", "read")
-
-f_RH_5           = TFile.Open("five_tev_RH_lep.root", "read")
-
-f_LH_1           = TFile.Open("one_tev_LH_lep.root", "read")
-
-f_LH_5           = TFile.Open("five_tev_LH_lep.root", "read")
+f_RH_1           = TFile.Open("smallTrees/RH_had_0j_500GeV.root", "read")
 
 
 
-RHone = f_RH_1.Get("Delphes")
-
-RHfive = f_RH_5.Get("Delphes")
+f_LH_1           = TFile.Open("smallTrees/LH_had_0j_500GeV.root", "read")
 
 
-LHone = f_LH_1.Get("Delphes")
 
-LHfive = f_LH_5.Get("Delphes")
 
-c1 = TCanvas()
+RHone = f_RH_1.Get("TTree_had")
 
-ROC_ratio = []
+LHone = f_LH_1.Get("TTree_had")
 
-RHoneClass = ratioHistograms.ratioHistograms(RHone, "RHone")
-LHoneClass = ratioHistograms.ratioHistograms(LHone, "LHone")
 
-RHoneClass.drawHistograms(c1)
-LHoneClass.drawHistograms(c1)
+#c1 = TCanvas()
 
-ROC_ratio.append( (ratioHistograms.makeROC(LHoneClass.TH1F_ratio, RHoneClass.TH1F_ratio, c1, "LHone", "RHone"), "1 TeV") )
+#ROC_ratio = []
+
+#RHoneClass = ratioHistograms.ratioHistograms(RHone, "RHone", 1)
+#LHoneClass = ratioHistograms.ratioHistograms(LHone, "LHone", 0)
+
+#RHoneClass.drawHistograms(c1)
+#LHoneClass.drawHistograms(c1)
+
+#ROC_ratio.append( (ratioHistograms.makeROC(LHoneClass.TH1F_ratio, RHoneClass.TH1F_ratio, c1, "LHone", "RHone"), "1 TeV") )
 
 
 #LHoneClass.makeROC(RHoneClass, c1)
 
 
-RHfiveClass = ratioHistograms.ratioHistograms(RHfive, "RHfive")
-LHfiveClass = ratioHistograms.ratioHistograms(LHfive, "LHfive")
+#RHfiveClass = ratioHistograms.ratioHistograms(RHfive, "RHfive", 1)
+#LHfiveClass = ratioHistograms.ratioHistograms(LHfive, "LHfive", 0)
 
-RHfiveClass.drawHistograms(c1)
-LHfiveClass.drawHistograms(c1)
+#RHfiveClass.drawHistograms(c1)
+#LHfiveClass.drawHistograms(c1)
 #LHfiveClass.makeROC(RHfiveClass, c1)
 
 
-ROC_ratio.append( (ratioHistograms.makeROC(LHfiveClass.TH1F_ratio, RHfiveClass.TH1F_ratio, c1, "LHfive", "RHfive"), "5 TeV") )
+#ROC_ratio.append( (ratioHistograms.makeROC(LHfiveClass.TH1F_ratio, RHfiveClass.TH1F_ratio, c1, "LHfive", "RHfive"), "5 TeV") )
 
 
-ratioHistograms.ROCMGDraw(ROC_ratio, c1)
+#ratioHistograms.ROCMGDraw(ROC_ratio, c1)
+
+
+
+## TMVA stuff:
+## http://nbviewer.jupyter.org/github/demattia/usercode/blob/master/Tutorials/InteractiveAnalysis/Notebooks/HATS_2013/TMVA.ipynb
+
+sigCut = ROOT.TCut("RightHanded > 0.5")
+bgCut = ROOT.TCut("RightHanded <= 0.5")
+
+
+ROOT.TMVA.Tools.Instance()
+
+# note that it seems to be mandatory to have an
+# output file, just passing None to TMVA::Factory(..)
+# does not work. Make sure you don't overwrite an
+# existing file.
+fout = ROOT.TFile("TMVAResults.root","RECREATE")
+
+factory = ROOT.TMVA.Factory("TMVAClassification", fout,
+                            ":".join([
+                                "!V",
+                                "!Silent",
+                                "!Color",
+                                "!DrawProgressBar",
+                                "Transformations=I;D;P;G,D",
+                                "AnalysisType=Classification"]
+                                     ))
+
+
+dataloader =  ROOT.TMVA.DataLoader("dataset")
+
+#dataloader.AddVariable("ratiojb","F")
+dataloader.AddVariable("jj_pt","F")
+#dataloader.AddVariable("jj_eta","F")
+#dataloader.AddVariable("jj_phi","F")
+
+dataloader.AddVariable("bjet_pt","F")
+#dataloader.AddVariable("bjet_eta","F")
+#dataloader.AddVariable("bjet_phi","F")
+
+#dataloader.AddVariable("deltaR","F")
+
+dataloader.AddSignalTree(RHone)
+dataloader.AddBackgroundTree(LHone)
+
+
+dataloader.PrepareTrainingAndTestTree(sigCut,   # signal events
+                                   bgCut,    # background events
+                                   ":".join([
+                                        "nTrain_Signal=0",
+                                        "nTrain_Background=0",
+                                        "SplitMode=Random",
+                                        "NormMode=NumEvents",
+                                        "!V"
+                                       ]))
+
+
+
+methodBDT = factory.BookMethod(dataloader, ROOT.TMVA.Types.kBDT, "BDT",
+                   ":".join([
+                       "!H",
+                       "!V",
+                       "NTrees=850",
+                       "nEventsMin=150",
+                       "MaxDepth=3",
+                       "BoostType=AdaBoost",
+                       "AdaBoostBeta=0.5",
+                       "SeparationType=GiniIndex",
+                       "nCuts=20",
+                       "PruneMethod=NoPruning",
+                       ]))
+
+
+factory.TrainAllMethods()
+factory.TestAllMethods()
+factory.EvaluateAllMethods()
+#outputFile.Close()
+#ROOT.TMVA.TMVAGui(outfname)
+#gApplication.Run() 
+
+
+
 
 #Bundle = UntypedLabel
 #

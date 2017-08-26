@@ -3,7 +3,8 @@ Simple macro showing how to access branches from the delphes output root file,
 loop over events, and plot simple quantities such as the jet pt and the di-electron invariant
 mass.
 
-root -l examples/Example1.C'("delphes_output.root")'
+root -l examples/Example1.C'("combined_had_lep_samples/RH_500GeV.root")'
+
 */
 
 #ifdef __CLING__
@@ -33,7 +34,10 @@ typedef struct {
   Float_t  met_phi;
   Float_t  met_eta;
 
+  Float_t  mt;
+  Float_t  mlb;
   Float_t  ratio;
+  Int_t  RightHanded;
 
 
 } leptonic_variables;
@@ -55,13 +59,16 @@ typedef struct {
 
   Float_t  mjjb;
   Float_t  ratio;
+  Float_t  mjb;
+  Float_t  ratiojb;
+  Int_t  RightHanded;
 
 
 } hadronic_variables;
 
 
 
-Float_t* returnJetStuff(Float_t values[5], Jet *bjet, Jet *jet1, Jet *jet2){
+Float_t* returnJetStuff(Float_t values[7], Jet *bjet, Jet *jet1, Jet *jet2){
 
   TLorentzVector TL_b;
   TL_b.SetPtEtaPhiM(bjet->PT, bjet->Eta, bjet->Phi, bjet->Mass );
@@ -77,12 +84,14 @@ Float_t* returnJetStuff(Float_t values[5], Jet *bjet, Jet *jet1, Jet *jet2){
   values[2] =  TL_w.Pt();
   values[3] =  TL_w.Eta();
   values[4] =  TL_w.Phi();
+  values[5] =  (TL_j1 + TL_b).M();
+  values[6] =  TL_b.E()/(TL_j1 + TL_b).E();
 
   return values;
 }
 
 
-void make_short_tree(const char *inputFile)
+void make_short_tree(const char *inputFile, const char *outputFile, int rightHanded)
 {
   gSystem->Load("libDelphes");
 
@@ -92,7 +101,7 @@ void make_short_tree(const char *inputFile)
 
 
   // make leptonTTree.C
-  TFile f("treeRH.root","recreate");
+  TFile f(outputFile,"recreate");
   TTree TTree_lep("TTree_lep","TTree_lep");
   leptonic_variables lep;
   
@@ -111,6 +120,9 @@ void make_short_tree(const char *inputFile)
   TTree_lep.Branch("met_eta", &lep.met_eta, "met_eta/F");
   
   TTree_lep.Branch("ratio", &lep.ratio, "ratio/F");
+  TTree_lep.Branch("mt", &lep.mt, "mt/F");
+  TTree_lep.Branch("mlb", &lep.mlb, "mlb/F");
+  TTree_lep.Branch("RightHanded", &lep.RightHanded, "RightHanded/I");
 
   TTree TTree_had("TTree_had","TTree_had");
   hadronic_variables had;
@@ -129,7 +141,10 @@ void make_short_tree(const char *inputFile)
   TTree_had.Branch("met_eta", &had.met_eta, "met_eta/F");
   
   TTree_had.Branch("ratio", &had.ratio, "ratio/F");
+  TTree_had.Branch("ratiojb", &had.ratiojb, "ratiojb/F");
   TTree_had.Branch("mjjb", &had.mjjb, "mjjb/F");
+  TTree_had.Branch("mjb", &had.mjb, "mjb/F");
+  TTree_had.Branch("RightHanded", &had.RightHanded, "RightHanded/I");
 
 
 
@@ -197,7 +212,7 @@ void make_short_tree(const char *inputFile)
 
       
 
-      Float_t values[5];
+      Float_t values[7];
      
 
       if(jet->BTag > 0){
@@ -215,7 +230,7 @@ void make_short_tree(const char *inputFile)
         had.bjet_pt  = jet2->PT;
         had.bjet_phi =  jet2->Phi;
         had.bjet_eta =  jet2->Eta;
-        returnJetStuff(values, jet2, jet1, jet);
+        returnJetStuff(values, jet2, jet, jet1 );
       }
 
       had.jj_pt = values[2];
@@ -229,6 +244,10 @@ void make_short_tree(const char *inputFile)
       had.met_phi =  met->Phi;
       had.met_eta =  met->Eta;
 
+      had.mjb =  values[5];
+      had.ratiojb =  values[6];
+
+      had.RightHanded = rightHanded;
 
       TTree_had.Fill();
     
@@ -279,8 +298,23 @@ void make_short_tree(const char *inputFile)
 
       lep.ratio = jet->PT/(jet->PT + lep.lep_pt);
 
+      lep.RightHanded = rightHanded;
+
+      TLorentzVector TL_MET;
+      TL_MET.SetPtEtaPhiM(met->MET, met->Eta, met->Phi, 0 );
+      TLorentzVector TL_lep;
+      TL_lep.SetPtEtaPhiM(lep.lep_pt, lep.lep_eta, lep.lep_phi, 0 );
+      TLorentzVector TL_b;
+      TL_b.SetPtEtaPhiM(jet->PT, jet->Eta, jet->Phi, jet->Mass );
+
+      lep.mt = (TL_MET + TL_lep + TL_b).Mt();
+      lep.mlb = (TL_lep + TL_b).M();
+
+
       TTree_lep.Fill();
       nlept_events = nlept_events + 1;
+
+
     
     }
     nEvents = nEvents +1;
